@@ -11,11 +11,11 @@ import (
 func handleConnection(conn net.Conn) {
 	for {
 		buf := make([]byte, 14) // #bytes for the PING command
-		if _, err := conn.Read(buf); err != nil {
+		if _, err := conn.Read(buf); err == io.EOF {
+			break
+		} else if err != nil {
 			fmt.Println("Error reading the connection: ", err.Error())
 			os.Exit(1)
-		} else if err == io.EOF {
-			break
 		}
 
 		if _, err := conn.Write([]byte("+PONG\r\n")); err != nil {
