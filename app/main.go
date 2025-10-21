@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -19,8 +20,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	if _, err := conn.Write([]byte("+PONG\r\n")); err != nil {
-		fmt.Println("Error sending the response: ", err.Error())
-		os.Exit(1)
+	for {
+		buf := make([]byte, 14) // #bytes for the PING command
+		if _, err := conn.Read(buf); err != nil {
+			fmt.Println("Error reading the connection: ", err.Error())
+			os.Exit(1)
+		} else if err == io.EOF {
+			break
+		}
+
+		if _, err := conn.Write([]byte("+PONG\r\n")); err != nil {
+			fmt.Println("Error sending the response: ", err.Error())
+			os.Exit(1)
+		}
 	}
 }
