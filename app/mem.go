@@ -78,10 +78,10 @@ func (m *Mem) Lrange(key string, start, stop int) []any {
 
 	// Handle negative indexes
 	if start < 0 {
-		start = len(vals) + start
+		start = max(len(vals)+start, 0)
 	}
 	if stop < 0 {
-		stop = len(vals) + stop
+		stop = max(len(vals)+stop, 0)
 	}
 
 	if start < 0 || stop < 0 || start > stop || start > len(vals) {
