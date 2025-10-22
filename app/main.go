@@ -5,22 +5,47 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 )
 
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
+	defer conn.Close()
+
 	for {
-		buf := make([]byte, 14) // #bytes for the PING command
-		if _, err := conn.Read(buf); err == io.EOF {
-			break
+		// Read the resp value
+		respVal, err := readRespVal(conn)
+		if err == io.EOF {
+			return
 		} else if err != nil {
-			fmt.Println("Error reading the connection: ", err.Error())
-			os.Exit(1)
+			fmt.Println("Failed to read the value: ", err.Error())
+			return
 		}
 
-		if _, err := conn.Write([]byte("+PONG\r\n")); err != nil {
+		cmd := respVal.ArrElems()
+		if len(cmd) < 1 {
+			fmt.Println("Invalid command argument")
+			return
+		}
+
+		var respStr string
+
+		switch strings.ToUpper(cmd[0].BulkStrs()) {
+		case "PING":
+			respStr = "PONG"
+
+		case "ECHO":
+			if len(cmd) < 2 {
+				fmt.Println("invalid command")
+				return
+			}
+
+			respStr = cmd[1].BulkStrs()
+		}
+
+		if _, err := conn.Write([]byte("+" + respStr + "\r\n")); err != nil {
 			fmt.Println("Error sending the response: ", err.Error())
-			os.Exit(1)
+			return
 		}
 	}
 }
