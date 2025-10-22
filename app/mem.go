@@ -51,3 +51,18 @@ func (m *Mem) Set(key string, val any, exp time.Duration) {
 		}()
 	}
 }
+
+func (m *Mem) Rpush(key string, val any) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	vals, ok := m.mp[key].([]any)
+	if !ok {
+		vals = []any{}
+	}
+
+	vals = append(vals, val)
+	m.mp[key] = vals
+
+	return len(vals)
+}

@@ -168,3 +168,7 @@ func ToBulkStr(val any) string {
 func ToNulls() string {
 	return "$-1\r\n"
 }
+
+func ToIntegers(val int) string {
+	return fmt.Sprintf(":%d\r\n", val)
+}

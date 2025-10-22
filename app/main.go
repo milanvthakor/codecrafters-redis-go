@@ -63,6 +63,15 @@ func handleGetCmd(cmd []*RespVal) (string, error) {
 	}
 }
 
+func handleRpushCmd(cmd []*RespVal) (string, error) {
+	if len(cmd) < 3 {
+		return "", errInvalidCmd
+	}
+
+	listLen := memCache.Rpush(cmd[1].BulkStrs(), cmd[2].BulkStrs())
+	return ToIntegers(listLen), nil
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -98,6 +107,9 @@ func handleConnection(conn net.Conn) {
 
 		case "GET":
 			respStr, err = handleGetCmd(cmd)
+
+		case "RPUSH":
+			respStr, err = handleRpushCmd(cmd)
 		}
 
 		// Check the error from the command action, if any
