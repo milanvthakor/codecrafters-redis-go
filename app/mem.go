@@ -84,7 +84,7 @@ func (m *Mem) Lrange(key string, start, stop int) []any {
 		stop = len(vals) + stop
 	}
 
-	if start > stop || start > len(vals) {
+	if start < 0 || stop < 0 || start > stop || start > len(vals) {
 		return []any{}
 	}
 
