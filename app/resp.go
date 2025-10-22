@@ -156,3 +156,15 @@ func readRespVal(conn net.Conn) (*RespVal, error) {
 
 	return c, nil
 }
+
+func ToSimpleStr(val string) string {
+	return fmt.Sprintf("+%s\r\n", val)
+}
+
+func ToBulkStr(val any) string {
+	return fmt.Sprintf("$%d\r\n%v\r\n", len(fmt.Sprint(val)), val)
+}
+
+func ToNulls() string {
+	return "$-1\r\n"
+}

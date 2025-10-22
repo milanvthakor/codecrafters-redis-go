@@ -22,17 +22,18 @@ func handleConnection(conn net.Conn) {
 			return
 		}
 
+		// Check if the command is present or not
 		cmd := respVal.ArrElems()
 		if len(cmd) < 1 {
 			fmt.Println("Invalid command argument")
 			return
 		}
 
+		// Perform the action as per the command
 		var respStr string
-
 		switch strings.ToUpper(cmd[0].BulkStrs()) {
 		case "PING":
-			respStr = "PONG"
+			respStr = ToSimpleStr("PONG")
 
 		case "ECHO":
 			if len(cmd) < 2 {
@@ -40,10 +41,32 @@ func handleConnection(conn net.Conn) {
 				return
 			}
 
-			respStr = cmd[1].BulkStrs()
+			respStr = ToSimpleStr(cmd[1].BulkStrs())
+
+		case "SET":
+			if len(cmd) < 3 {
+				fmt.Println("invalid command")
+				return
+			}
+
+			memCache.Set(cmd[1].BulkStrs(), cmd[2].BulkStrs())
+			respStr = ToSimpleStr("OK")
+
+		case "GET":
+			if len(cmd) < 2 {
+				fmt.Println("invalid command")
+				return
+			}
+
+			if val, ok := memCache.Get(cmd[1].BulkStrs()); !ok {
+				respStr = ToNulls()
+			} else {
+				respStr = ToBulkStr(val)
+			}
 		}
 
-		if _, err := conn.Write([]byte("+" + respStr + "\r\n")); err != nil {
+		// Return the response
+		if _, err := conn.Write([]byte(respStr)); err != nil {
 			fmt.Println("Error sending the response: ", err.Error())
 			return
 		}
