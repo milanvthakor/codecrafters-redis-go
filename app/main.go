@@ -5,7 +5,9 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // handleConnection handles the single client connection
@@ -49,7 +51,31 @@ func handleConnection(conn net.Conn) {
 				return
 			}
 
-			memCache.Set(cmd[1].BulkStrs(), cmd[2].BulkStrs())
+			var exp time.Duration
+			if len(cmd) > 3 { // Optional exp arg is present
+				if len(cmd) != 5 {
+					fmt.Println("invalid command")
+					return
+				}
+
+				flag := strings.ToUpper(cmd[3].BulkStrs())
+				dur, err := strconv.ParseInt(cmd[4].BulkStrs(), 10, 64)
+				if err != nil {
+					fmt.Println("invalid expiry value")
+				}
+
+				switch flag {
+				case "EX":
+					exp = time.Duration(dur * int64(time.Second))
+				case "PX":
+					exp = time.Duration(dur * int64(time.Millisecond))
+				default:
+					fmt.Println("invalid expiry flag")
+					return
+				}
+			}
+
+			memCache.Set(cmd[1].BulkStrs(), cmd[2].BulkStrs(), exp)
 			respStr = ToSimpleStr("OK")
 
 		case "GET":
