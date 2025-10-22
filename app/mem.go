@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -78,11 +79,13 @@ func (m *Mem) Lrange(key string, start, stop int) []any {
 
 	// Handle negative indexes
 	if start < 0 {
-		start = len(vals) - start
+		start = len(vals) + start
 	}
 	if stop < 0 {
-		stop = len(vals) - stop
+		stop = len(vals) + stop
 	}
+
+	fmt.Println("IND: ", start, stop)
 
 	if start > stop || start > len(vals) {
 		return []any{}
