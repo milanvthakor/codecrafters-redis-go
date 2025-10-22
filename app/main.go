@@ -138,6 +138,10 @@ func handleLpopCmd(cmd []*RespVal) (string, error) {
 	if removed == nil {
 		return ToNulls(), nil
 	}
+	if len(removed) == 1 {
+		return ToBulkStr(removed[0]), nil
+	}
+
 	return ToArray(removed), nil
 }
 
