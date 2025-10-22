@@ -66,3 +66,23 @@ func (m *Mem) Rpush(key string, vals ...any) int {
 
 	return len(existVals)
 }
+
+func (m *Mem) Lrange(key string, start, stop int) []any {
+	if start > stop {
+		return []any{}
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	vals, ok := m.mp[key].([]any)
+	if !ok || start > len(vals) {
+		return []any{}
+	}
+
+	if stop >= len(vals) {
+		stop = len(vals) - 1
+	}
+
+	return vals[start : stop+1]
+}

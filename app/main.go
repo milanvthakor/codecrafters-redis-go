@@ -77,6 +77,25 @@ func handleRpushCmd(cmd []*RespVal) (string, error) {
 	return ToIntegers(listLen), nil
 }
 
+func handleLrangeCmd(cmd []*RespVal) (string, error) {
+	if len(cmd) < 4 {
+		return "", errInvalidCmd
+	}
+
+	start, err := strconv.Atoi(cmd[2].BulkStrs())
+	if err != nil {
+		return "", fmt.Errorf("invalid 'start' index")
+	}
+
+	stop, err := strconv.Atoi(cmd[3].BulkStrs())
+	if err != nil {
+		return "", fmt.Errorf("invalid 'stop' index")
+	}
+
+	vals := memCache.Lrange(cmd[1].BulkStrs(), start, stop)
+	return ToArray(vals), nil
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -115,6 +134,9 @@ func handleConnection(conn net.Conn) {
 
 		case "RPUSH":
 			respStr, err = handleRpushCmd(cmd)
+
+		case "LRANGE":
+			respStr, err = handleLrangeCmd(cmd)
 		}
 
 		// Check the error from the command action, if any

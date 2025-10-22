@@ -172,3 +172,16 @@ func ToNulls() string {
 func ToIntegers(val int) string {
 	return fmt.Sprintf(":%d\r\n", val)
 }
+
+func ToArray(arr []any) string {
+	if arr == nil {
+		return "*-1\r\n"
+	}
+
+	str := fmt.Sprintf("*%d\r\n", len(arr))
+	for _, ele := range arr {
+		str += fmt.Sprintf("$%d\r\n%v\r\n", len(fmt.Sprint(ele)), ele)
+	}
+
+	return str
+}
