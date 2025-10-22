@@ -96,6 +96,20 @@ func handleLrangeCmd(cmd []*RespVal) (string, error) {
 	return ToArray(vals), nil
 }
 
+func handleLpushCmd(cmd []*RespVal) (string, error) {
+	if len(cmd) < 3 {
+		return "", errInvalidCmd
+	}
+
+	vals := make([]any, len(cmd)-2)
+	for i := 2; i < len(cmd); i++ {
+		vals[i-2] = cmd[i].BulkStrs()
+	}
+
+	listLen := memCache.Lpush(cmd[1].BulkStrs(), vals...)
+	return ToIntegers(listLen), nil
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -137,6 +151,9 @@ func handleConnection(conn net.Conn) {
 
 		case "LRANGE":
 			respStr, err = handleLrangeCmd(cmd)
+
+		case "LPUSH":
+			respStr, err = handleLpushCmd(cmd)
 		}
 
 		// Check the error from the command action, if any

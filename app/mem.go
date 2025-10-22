@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"sync"
 	"time"
 )
@@ -62,6 +63,22 @@ func (m *Mem) Rpush(key string, vals ...any) int {
 	}
 
 	existVals = append(existVals, vals...)
+	m.mp[key] = existVals
+
+	return len(existVals)
+}
+
+func (m *Mem) Lpush(key string, vals ...any) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	existVals, ok := m.mp[key].([]any)
+	if !ok {
+		existVals = []any{}
+	}
+
+	slices.Reverse(vals)
+	existVals = append(vals, existVals...)
 	m.mp[key] = existVals
 
 	return len(existVals)
