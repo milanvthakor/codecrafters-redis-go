@@ -52,17 +52,17 @@ func (m *Mem) Set(key string, val any, exp time.Duration) {
 	}
 }
 
-func (m *Mem) Rpush(key string, val any) int {
+func (m *Mem) Rpush(key string, vals ...any) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	vals, ok := m.mp[key].([]any)
+	existVals, ok := m.mp[key].([]any)
 	if !ok {
-		vals = []any{}
+		existVals = []any{}
 	}
 
-	vals = append(vals, val)
-	m.mp[key] = vals
+	existVals = append(existVals, vals...)
+	m.mp[key] = existVals
 
-	return len(vals)
+	return len(existVals)
 }

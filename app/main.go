@@ -68,7 +68,12 @@ func handleRpushCmd(cmd []*RespVal) (string, error) {
 		return "", errInvalidCmd
 	}
 
-	listLen := memCache.Rpush(cmd[1].BulkStrs(), cmd[2].BulkStrs())
+	vals := make([]any, len(cmd)-2)
+	for i := 2; i < len(cmd); i++ {
+		vals[i-2] = cmd[i].BulkStrs()
+	}
+
+	listLen := memCache.Rpush(cmd[1].BulkStrs(), vals...)
 	return ToIntegers(listLen), nil
 }
 
