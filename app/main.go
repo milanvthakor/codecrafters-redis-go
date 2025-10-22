@@ -119,6 +119,18 @@ func handleLlenCmd(cmd []*RespVal) (string, error) {
 	return ToIntegers(len), nil
 }
 
+func handleLpopCmd(cmd []*RespVal) (string, error) {
+	if len(cmd) < 2 {
+		return "", errInvalidCmd
+	}
+
+	removed := memCache.Lpop(cmd[1].BulkStrs())
+	if removed == nil {
+		return ToNulls(), nil
+	}
+	return ToBulkStr(removed), nil
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -166,6 +178,9 @@ func handleConnection(conn net.Conn) {
 
 		case "LLEN":
 			respStr, err = handleLlenCmd(cmd)
+
+		case "LPOP":
+			respStr, err = handleLpopCmd(cmd)
 		}
 
 		// Check the error from the command action, if any

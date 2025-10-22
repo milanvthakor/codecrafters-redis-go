@@ -85,8 +85,8 @@ func (m *Mem) Lpush(key string, vals ...any) int {
 }
 
 func (m *Mem) Lrange(key string, start, stop int) []any {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	vals, ok := m.mp[key].([]any)
 	if !ok {
@@ -112,8 +112,8 @@ func (m *Mem) Lrange(key string, start, stop int) []any {
 }
 
 func (m *Mem) Llen(key string) int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	vals, ok := m.mp[key].([]any)
 	if !ok {
@@ -121,4 +121,20 @@ func (m *Mem) Llen(key string) int {
 	}
 
 	return len(vals)
+}
+
+func (m *Mem) Lpop(key string) any {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	vals, ok := m.mp[key].([]any)
+	if !ok || len(vals) == 0 {
+		return nil
+	}
+
+	first := vals[0]
+	vals = vals[1:]
+	m.mp[key] = vals
+
+	return first
 }
