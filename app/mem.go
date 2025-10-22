@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
@@ -84,8 +83,6 @@ func (m *Mem) Lrange(key string, start, stop int) []any {
 	if stop < 0 {
 		stop = len(vals) + stop
 	}
-
-	fmt.Println("IND: ", start, stop)
 
 	if start > stop || start > len(vals) {
 		return []any{}
