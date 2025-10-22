@@ -110,3 +110,15 @@ func (m *Mem) Lrange(key string, start, stop int) []any {
 	}
 	return vals[start : stop+1]
 }
+
+func (m *Mem) Llen(key string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	vals, ok := m.mp[key].([]any)
+	if !ok {
+		return 0
+	}
+
+	return len(vals)
+}

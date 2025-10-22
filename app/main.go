@@ -110,6 +110,15 @@ func handleLpushCmd(cmd []*RespVal) (string, error) {
 	return ToIntegers(listLen), nil
 }
 
+func handleLlenCmd(cmd []*RespVal) (string, error) {
+	if len(cmd) < 2 {
+		return "", errInvalidCmd
+	}
+
+	len := memCache.Llen(cmd[1].BulkStrs())
+	return ToIntegers(len), nil
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -154,6 +163,9 @@ func handleConnection(conn net.Conn) {
 
 		case "LPUSH":
 			respStr, err = handleLpushCmd(cmd)
+
+		case "LLEN":
+			respStr, err = handleLlenCmd(cmd)
 		}
 
 		// Check the error from the command action, if any
