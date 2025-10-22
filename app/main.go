@@ -124,11 +124,21 @@ func handleLpopCmd(cmd []*RespVal) (string, error) {
 		return "", errInvalidCmd
 	}
 
-	removed := memCache.Lpop(cmd[1].BulkStrs())
+	remCnt := 1
+	if len(cmd) == 3 {
+		val, err := strconv.Atoi(cmd[2].BulkStrs())
+		if err != nil {
+			return "", fmt.Errorf("invalid 'count' value")
+		}
+
+		remCnt = val
+	}
+
+	removed := memCache.Lpop(cmd[1].BulkStrs(), remCnt)
 	if removed == nil {
 		return ToNulls(), nil
 	}
-	return ToBulkStr(removed), nil
+	return ToArray(removed), nil
 }
 
 // handleConnection handles the single client connection

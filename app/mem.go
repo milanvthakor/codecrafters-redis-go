@@ -123,7 +123,7 @@ func (m *Mem) Llen(key string) int {
 	return len(vals)
 }
 
-func (m *Mem) Lpop(key string) any {
+func (m *Mem) Lpop(key string, remCnt int) []any {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -132,9 +132,13 @@ func (m *Mem) Lpop(key string) any {
 		return nil
 	}
 
-	first := vals[0]
-	vals = vals[1:]
-	m.mp[key] = vals
+	if remCnt >= len(vals) {
+		delete(m.mp, key)
+		return vals
+	}
 
-	return first
+	removed := vals[:remCnt]
+	m.mp[key] = vals[remCnt:]
+
+	return removed
 }
