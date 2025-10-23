@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -43,6 +44,10 @@ func parseStreamID(id string) (int64, int64, error) {
 // If either part of the ID contains "*", it auto-generates the ID and return it.
 // Otherwise, returns the same id.
 func isValidStreamID(id, lastID string) (string, error) {
+	if id == "*" {
+		return fmt.Sprintf("%d-%d", time.Now().UnixMilli(), 0), nil
+	}
+
 	// Parse the new ID
 	ms, seqNum, err := parseStreamID(id)
 	if err != nil {
