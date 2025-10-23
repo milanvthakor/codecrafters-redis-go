@@ -173,6 +173,31 @@ func handleTypeCmd(cmd []*RespVal) (string, error) {
 	return ToSimpleStr(typ), nil
 }
 
+func handleXaddCmd(cmd []*RespVal) (string, error) {
+	if len(cmd) < 3 {
+		return "", errInvalidCmd
+	}
+
+	key := cmd[1].BulkStrs()
+	id := cmd[2].BulkStrs()
+	rawPairs := cmd[3:]
+	// Check if key-val pairs are provided correctly
+	if len(rawPairs)%2 != 0 {
+		return "", fmt.Errorf("invalid key-value pairs")
+	}
+
+	pairs := make(map[string]string)
+	for i := 0; i < len(rawPairs); i += 2 {
+		pairs[cmd[i].BulkStrs()] = cmd[i+1].BulkStrs()
+	}
+
+	storedID := memCache.Xadd(key, &StreamElem{
+		ID:    id,
+		Pairs: pairs,
+	})
+	return ToBulkStr(storedID), nil
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -229,6 +254,9 @@ func handleConnection(conn net.Conn) {
 
 		case "TYPE":
 			respStr, err = handleTypeCmd(cmd)
+
+		case "XADD":
+			respStr, err = handleXaddCmd(cmd)
 		}
 
 		// Check the error from the command action, if any

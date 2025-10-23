@@ -6,6 +6,16 @@ import (
 	"time"
 )
 
+// StreamElem represents the single element/item of the stream.
+type StreamElem struct {
+	ID    string
+	Pairs map[string]string
+}
+
+// Stream represents the single stream of elements associated with particular key.
+// It maps the ID of stream elements with its struct.
+type Stream map[string]*StreamElem
+
 // ListBlockPop is used to handle the blocking "BLPOP" command.
 type ListBlockPop struct {
 	// waitQ is map of list key and the list of channels of the connection
@@ -239,9 +249,26 @@ func (m *Mem) Type(key string) string {
 	switch val.(type) {
 	case string:
 		return "string"
+	case Stream:
+		return "stream"
 	case []any:
 		return "list"
 	default:
 		return "none"
 	}
+}
+
+func (m *Mem) Xadd(key string, elem *StreamElem) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	stream, ok := m.mp[key].(Stream)
+	if !ok {
+		stream = make(Stream)
+	}
+
+	stream[elem.ID] = elem
+	m.mp[key] = stream
+
+	return elem.ID
 }
