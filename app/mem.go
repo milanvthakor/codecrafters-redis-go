@@ -268,18 +268,22 @@ func (m *Mem) Xadd(key string, elem *StreamElem) (string, error) {
 	}
 
 	// Check if the new ID is valid
-	var err error
+	var (
+		id  string
+		err error
+	)
 	if len(stream) <= 0 {
-		err = isValidStreamID(elem.ID, "")
+		id, err = isValidStreamID(elem.ID, "")
 	} else {
-		err = isValidStreamID(elem.ID, stream[len(stream)-1].ID)
+		id, err = isValidStreamID(elem.ID, stream[len(stream)-1].ID)
 	}
 	if err != nil {
 		return "", err
 	}
 
+	elem.ID = id
 	stream = append(stream, elem)
 	m.mp[key] = stream
 
-	return elem.ID, nil
+	return id, nil
 }

@@ -18,41 +18,62 @@ func parseStreamID(id string) (int64, int64, error) {
 		return 0, 0, fmt.Errorf("id doesn't have <milliseconds>-<sequenceNumber> format")
 	}
 
-	ms, err := strconv.ParseInt(tokens[0], 10, 64)
-	if err != nil {
+	var ms, seqNum int64
+
+	if tokens[0] == "*" {
+		ms = -1
+	} else if val, err := strconv.ParseInt(tokens[0], 10, 64); err != nil {
 		return 0, 0, fmt.Errorf("invalid <milliseconds> value in the ID")
+	} else {
+		ms = val
 	}
 
-	seqNum, err := strconv.ParseInt(tokens[1], 10, 64)
-	if err != nil {
+	if tokens[1] == "*" {
+		seqNum = -1
+	} else if val, err := strconv.ParseInt(tokens[1], 10, 64); err != nil {
 		return 0, 0, fmt.Errorf("invalid <sequenceFormat> value in the ID")
+	} else {
+		seqNum = val
 	}
 
 	return ms, seqNum, nil
 }
 
 // isValidStreamID checks if the new Xadd stread id is valid as per the format and last id.
-func isValidStreamID(id, lastID string) error {
+// If either part of the ID contains "*", it auto-generates the ID and return it.
+// Otherwise, returns the same id.
+func isValidStreamID(id, lastID string) (string, error) {
 	// Parse the new ID
 	ms, seqNum, err := parseStreamID(id)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if ms == 0 && seqNum == 0 {
-		return errXaddIdIsZero
+		return "", errXaddIdIsZero
 	}
 
 	// Parse the last ID
 	prevMs, prevSeqNum, _ := parseStreamID(lastID)
 
+	// Generate the auto-increated sequence number
+	if seqNum == -1 {
+		if ms == 0 {
+			seqNum = 1
+		} else if prevMs == 0 {
+			seqNum = 0
+		} else {
+			seqNum = prevSeqNum + 1
+		}
+	}
+
 	// Validate the new ID against the last one
 	if ms == prevMs {
 		if seqNum <= prevSeqNum {
-			return errXaddIdIsEqOrSmall
+			return "", errXaddIdIsEqOrSmall
 		}
 	} else if ms <= prevMs {
-		return errXaddIdIsEqOrSmall
+		return "", errXaddIdIsEqOrSmall
 	}
 
-	return nil
+	return fmt.Sprintf("%d-%d", ms, seqNum), nil
 }
