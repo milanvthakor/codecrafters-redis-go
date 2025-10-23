@@ -6,17 +6,28 @@ import (
 	"time"
 )
 
+// ListBlockPop is used to handle the blocking "BLPOP" command.
+type ListBlockPop struct {
+	// waitQ is map of list key and the list of channels of the connection
+	// waiting for the new element to get inserted in the list
+	waitQ map[string][]chan struct{}
+	mu    sync.Mutex
+}
+
 type Mem struct {
-	mu sync.RWMutex
-	mp map[string]any
+	mu  sync.RWMutex
+	mp  map[string]any // TODO: Make sure a key holds the value of only one type. If user tries to change it, they shouldn't be able to do so if the value exists for it.
+	lbp *ListBlockPop
 }
 
 var memCache *Mem
 
 func NewMem() *Mem {
 	return &Mem{
-		mu: sync.RWMutex{},
 		mp: make(map[string]any),
+		lbp: &ListBlockPop{
+			waitQ: make(map[string][]chan struct{}),
+		},
 	}
 }
 
@@ -53,6 +64,44 @@ func (m *Mem) Set(key string, val any, exp time.Duration) {
 	}
 }
 
+// handleListInsert sends the signal to available connections waiting for the element to be inserted
+func (m *Mem) handleListInsert(key string) {
+	// Get the length of the list
+	var listLen int
+	m.mu.RLock()
+	if list, ok := m.mp[key].([]any); ok {
+		listLen = len(list)
+	}
+	m.mu.RUnlock()
+
+	// Sent the signal to the connections waiting in the queue
+	m.lbp.mu.Lock()
+	defer m.lbp.mu.Unlock()
+
+	waitList, ok := m.lbp.waitQ[key]
+	if !ok || len(waitList) <= 0 {
+		return
+	}
+
+waitLoop:
+	for i, w := range waitList {
+		select {
+		case w <- struct{}{}:
+			listLen--
+		default:
+		}
+
+		if listLen == 0 { // Break once there are no more elements to be removed
+			if i == -1 || i == len(waitList)-1 {
+				delete(m.lbp.waitQ, key)
+			} else {
+				m.lbp.waitQ[key] = waitList[i+1:]
+			}
+			break waitLoop
+		}
+	}
+}
+
 func (m *Mem) Rpush(key string, vals ...any) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -64,6 +113,8 @@ func (m *Mem) Rpush(key string, vals ...any) int {
 
 	existVals = append(existVals, vals...)
 	m.mp[key] = existVals
+
+	go m.handleListInsert(key)
 
 	return len(existVals)
 }
@@ -80,6 +131,8 @@ func (m *Mem) Lpush(key string, vals ...any) int {
 	slices.Reverse(vals)
 	existVals = append(vals, existVals...)
 	m.mp[key] = existVals
+
+	go m.handleListInsert(key)
 
 	return len(existVals)
 }
@@ -141,4 +194,35 @@ func (m *Mem) Lpop(key string, remCnt int) []any {
 	m.mp[key] = vals[remCnt:]
 
 	return removed
+}
+
+func (m *Mem) Blpop(key string, timeout time.Duration) any {
+	// Remove the first element, if present.
+	removed := m.Lpop(key, 1)
+	if removed != nil {
+		return removed[0]
+	}
+
+	// Wait for an element to be present to get removed
+	elemPresSign := make(chan struct{})
+	m.lbp.mu.Lock()
+	m.lbp.waitQ[key] = append(m.lbp.waitQ[key], elemPresSign)
+	m.lbp.mu.Unlock()
+
+	// Handles the no timeout
+	if timeout == 0 {
+		<-elemPresSign
+		return m.Lpop(key, 1)[0]
+	}
+
+	// Handles the timeout
+	for {
+		select {
+		case <-time.After(timeout):
+			return nil
+
+		case <-elemPresSign:
+			return m.Lpop(key, 1)
+		}
+	}
 }

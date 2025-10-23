@@ -145,6 +145,25 @@ func handleLpopCmd(cmd []*RespVal) (string, error) {
 	return ToArray(removed), nil
 }
 
+func handleBlpopCmd(cmd []*RespVal) (string, error) {
+	if len(cmd) < 3 {
+		return "", errInvalidCmd
+	}
+
+	dur, err := strconv.ParseInt(cmd[2].BulkStrs(), 10, 64)
+	if err != nil {
+		return "", fmt.Errorf("invalid expiry value")
+	}
+
+	key := cmd[1].BulkStrs()
+	removed := memCache.Blpop(key, time.Duration(dur*int64(time.Second)))
+	if removed == nil {
+		return ToArray(nil), nil
+	}
+
+	return ToArray([]any{key, removed}), nil
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -195,6 +214,9 @@ func handleConnection(conn net.Conn) {
 
 		case "LPOP":
 			respStr, err = handleLpopCmd(cmd)
+
+		case "BLPOP":
+			respStr, err = handleBlpopCmd(cmd)
 		}
 
 		// Check the error from the command action, if any
