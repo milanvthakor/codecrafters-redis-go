@@ -161,6 +161,10 @@ func ToSimpleStr(val string) string {
 	return fmt.Sprintf("+%s\r\n", val)
 }
 
+func ToSimpErr(val string) string {
+	return fmt.Sprintf("-%s\r\n", val)
+}
+
 func ToBulkStr(val any) string {
 	return fmt.Sprintf("$%d\r\n%v\r\n", len(fmt.Sprint(val)), val)
 }

@@ -191,10 +191,14 @@ func handleXaddCmd(cmd []*RespVal) (string, error) {
 		pairs[cmd[i].BulkStrs()] = cmd[i+1].BulkStrs()
 	}
 
-	storedID := memCache.Xadd(key, &StreamElem{
+	storedID, err := memCache.Xadd(key, &StreamElem{
 		ID:    id,
 		Pairs: pairs,
 	})
+	if err != nil {
+		return "", err
+	}
+
 	return ToBulkStr(storedID), nil
 }
 
@@ -261,8 +265,8 @@ func handleConnection(conn net.Conn) {
 
 		// Check the error from the command action, if any
 		if err != nil {
-			fmt.Println(err)
-			return
+			fmt.Println("Failed to perform the command action: ", err.Error())
+			respStr = ToSimpErr(err.Error())
 		}
 
 		// Return the response

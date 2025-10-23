@@ -14,7 +14,7 @@ type StreamElem struct {
 
 // Stream represents the single stream of elements associated with particular key.
 // It maps the ID of stream elements with its struct.
-type Stream map[string]*StreamElem
+type Stream []*StreamElem
 
 // ListBlockPop is used to handle the blocking "BLPOP" command.
 type ListBlockPop struct {
@@ -258,17 +258,28 @@ func (m *Mem) Type(key string) string {
 	}
 }
 
-func (m *Mem) Xadd(key string, elem *StreamElem) string {
+func (m *Mem) Xadd(key string, elem *StreamElem) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	stream, ok := m.mp[key].(Stream)
 	if !ok {
-		stream = make(Stream)
+		stream = make(Stream, 0)
 	}
 
-	stream[elem.ID] = elem
+	// Check if the new ID is valid
+	var err error
+	if len(stream) <= 0 {
+		err = isValidStreamID(elem.ID, "")
+	} else {
+		err = isValidStreamID(elem.ID, stream[len(stream)-1].ID)
+	}
+	if err != nil {
+		return "", err
+	}
+
+	stream = append(stream, elem)
 	m.mp[key] = stream
 
-	return elem.ID
+	return elem.ID, nil
 }
