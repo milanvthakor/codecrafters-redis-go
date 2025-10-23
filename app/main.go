@@ -150,13 +150,13 @@ func handleBlpopCmd(cmd []*RespVal) (string, error) {
 		return "", errInvalidCmd
 	}
 
-	dur, err := strconv.ParseInt(cmd[2].BulkStrs(), 10, 64)
+	dur, err := strconv.ParseFloat(cmd[2].BulkStrs(), 64)
 	if err != nil {
 		return "", fmt.Errorf("invalid expiry value")
 	}
 
 	key := cmd[1].BulkStrs()
-	removed := memCache.Blpop(key, time.Duration(dur*int64(time.Second)))
+	removed := memCache.Blpop(key, time.Duration(dur*float64(time.Second)))
 	if removed == nil {
 		return ToArray(nil), nil
 	}
