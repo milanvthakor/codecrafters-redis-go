@@ -226,3 +226,22 @@ func (m *Mem) Blpop(key string, timeout time.Duration) any {
 		}
 	}
 }
+
+func (m *Mem) Type(key string) string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	val, ok := m.mp[key]
+	if !ok {
+		return "none"
+	}
+
+	switch val.(type) {
+	case string:
+		return "string"
+	case []any:
+		return "list"
+	default:
+		return "none"
+	}
+}

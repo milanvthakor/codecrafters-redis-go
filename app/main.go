@@ -164,6 +164,15 @@ func handleBlpopCmd(cmd []*RespVal) (string, error) {
 	return ToArray([]any{key, removed}), nil
 }
 
+func handleTypeCmd(cmd []*RespVal) (string, error) {
+	if len(cmd) < 2 {
+		return "", errInvalidCmd
+	}
+
+	typ := memCache.Type(cmd[1].BulkStrs())
+	return ToSimpleStr(typ), nil
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -217,6 +226,9 @@ func handleConnection(conn net.Conn) {
 
 		case "BLPOP":
 			respStr, err = handleBlpopCmd(cmd)
+
+		case "TYPE":
+			respStr, err = handleTypeCmd(cmd)
 		}
 
 		// Check the error from the command action, if any
