@@ -222,7 +222,7 @@ func (m *Mem) Blpop(key string, timeout time.Duration) any {
 			return nil
 
 		case <-elemPresSign:
-			return m.Lpop(key, 1)
+			return m.Lpop(key, 1)[0]
 		}
 	}
 }
