@@ -309,11 +309,18 @@ func (m *Mem) Xrange(key, startId, endId string) (Stream, error) {
 		startIdx = val
 	}
 
-	endIdx, err := getEndIdxByElemID(endId, stream)
-	if err != nil {
-		return nil, err
+	// Get the end index
+	endIdx := len(stream) - 1
+	if endId != "+" {
+		val, err := getEndIdxByElemID(endId, stream)
+		if err != nil {
+			return nil, err
+		}
+
+		endIdx = val
 	}
 
+	// Validate the indicies
 	if startIdx < 0 || startIdx >= len(stream) || endIdx < 0 || endIdx >= len(stream) || startIdx > endIdx {
 		return nil, fmt.Errorf("invalid 'startId' or 'endId' parameter were provided")
 	}
