@@ -215,6 +215,19 @@ func handleXrangeCmd(cmd []*RespVal) (string, error) {
 	return StreamToArray(stream), nil
 }
 
+func handleXreadCmd(cmd []*RespVal) (string, error) {
+	if len(cmd) < 4 {
+		return "", errInvalidCmd
+	}
+
+	stream, err := memCache.Xread(cmd[2].BulkStrs(), cmd[3].BulkStrs())
+	if err != nil {
+		return "", err
+	}
+
+	return "*1\r\n*2\r\n" + ToBulkStr(cmd[2].BulkStrs()) + StreamToArray(stream), nil
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -277,6 +290,9 @@ func handleConnection(conn net.Conn) {
 
 		case "XRANGE":
 			respStr, err = handleXrangeCmd(cmd)
+
+		case "XREAD":
+			respStr, err = handleXreadCmd(cmd)
 		}
 
 		// Check the error from the command action, if any

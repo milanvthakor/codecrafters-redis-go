@@ -322,11 +322,38 @@ func (m *Mem) Xrange(key, startId, endId string) (Stream, error) {
 
 	// Validate the indicies
 	if startIdx < 0 || startIdx >= len(stream) || endIdx < 0 || endIdx >= len(stream) || startIdx > endIdx {
-		return nil, fmt.Errorf("invalid 'startId' or 'endId' parameter were provided")
+		return nil, fmt.Errorf("invalid 'startId' or 'endId' parameter are provided")
 	}
 
 	result := make(Stream, endIdx-startIdx+1)
 	copy(result, stream[startIdx:endIdx+1])
+
+	return result, nil
+}
+
+func (m *Mem) Xread(key, id string) (Stream, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	stream, ok := m.mp[key].(Stream)
+	if !ok {
+		return nil, nil
+	}
+
+	// Get the end index
+	starIdx, err := getEndIdxByElemID(id, stream)
+	if err != nil {
+		return nil, err
+	}
+	// Do +1 as getEndIdxByElemID gives ID that is less than or equal to the given ID
+	starIdx++
+
+	if starIdx < 0 || starIdx >= len(stream) {
+		return nil, fmt.Errorf("invalid id is provided")
+	}
+
+	result := make(Stream, len(stream)-starIdx)
+	copy(result, stream[starIdx:])
 
 	return result, nil
 }
