@@ -188,7 +188,7 @@ func handleXaddCmd(cmd []*RespVal) (string, error) {
 
 	pairs := make(map[string]string)
 	for i := 0; i < len(rawPairs); i += 2 {
-		pairs[cmd[i].BulkStrs()] = cmd[i+1].BulkStrs()
+		pairs[rawPairs[i].BulkStrs()] = rawPairs[i+1].BulkStrs()
 	}
 
 	storedID, err := memCache.Xadd(key, &StreamElem{
@@ -200,6 +200,19 @@ func handleXaddCmd(cmd []*RespVal) (string, error) {
 	}
 
 	return ToBulkStr(storedID), nil
+}
+
+func handleXrangeCmd(cmd []*RespVal) (string, error) {
+	if len(cmd) < 4 {
+		return "", errInvalidCmd
+	}
+
+	stream, err := memCache.Xrange(cmd[1].BulkStrs(), cmd[2].BulkStrs(), cmd[3].BulkStrs())
+	if err != nil {
+		return "", err
+	}
+
+	return StreamToArray(stream), nil
 }
 
 // handleConnection handles the single client connection
@@ -261,6 +274,9 @@ func handleConnection(conn net.Conn) {
 
 		case "XADD":
 			respStr, err = handleXaddCmd(cmd)
+
+		case "XRANGE":
+			respStr, err = handleXrangeCmd(cmd)
 		}
 
 		// Check the error from the command action, if any

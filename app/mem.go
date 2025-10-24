@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"slices"
 	"sync"
 	"time"
@@ -286,4 +287,33 @@ func (m *Mem) Xadd(key string, elem *StreamElem) (string, error) {
 	m.mp[key] = stream
 
 	return id, nil
+}
+
+func (m *Mem) Xrange(key, startId, endId string) (Stream, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	stream, ok := m.mp[key].(Stream)
+	if !ok {
+		return nil, nil
+	}
+
+	startIdx, err := getStartIdxByElemID(startId, stream)
+	if err != nil {
+		return nil, err
+	}
+
+	endIdx, err := getEndIdxByElemID(endId, stream)
+	if err != nil {
+		return nil, err
+	}
+
+	if startIdx < 0 || startIdx >= len(stream) || endIdx < 0 || endIdx >= len(stream) || startIdx > endIdx {
+		return nil, fmt.Errorf("invalid 'startId' or 'endId' parameter were provided")
+	}
+
+	result := make(Stream, endIdx-startIdx+1)
+	copy(result, stream[startIdx:endIdx+1])
+
+	return result, nil
 }

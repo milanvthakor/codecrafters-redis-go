@@ -189,3 +189,18 @@ func ToArray(arr []any) string {
 
 	return str
 }
+
+func StreamToArray(stream Stream) string {
+	str := fmt.Sprintf("*%d\r\n", len(stream))
+	for _, streElem := range stream {
+		str += "*2\r\n"
+		str += ToBulkStr(streElem.ID)
+
+		str += fmt.Sprintf("*%d\r\n", len(streElem.Pairs)*2)
+		for k, v := range streElem.Pairs {
+			str += ToBulkStr(k) + ToBulkStr(v)
+		}
+	}
+
+	return str
+}

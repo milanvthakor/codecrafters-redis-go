@@ -13,10 +13,14 @@ var (
 )
 
 // parseStreamID parses the given Xadd stream id
-func parseStreamID(id string) (int64, int64, error) {
+func parseStreamID(id string, isSeqNumOpt bool) (int64, int64, error) {
 	tokens := strings.Split(id, "-")
 	if len(tokens) != 2 {
-		return 0, 0, fmt.Errorf("id doesn't have <milliseconds>-<sequenceNumber> format")
+		if !isSeqNumOpt {
+			return 0, 0, fmt.Errorf("id doesn't have <milliseconds>-<sequenceNumber> format")
+		} else {
+			tokens = append(tokens, "*")
+		}
 	}
 
 	var ms, seqNum int64
@@ -49,7 +53,7 @@ func isValidStreamID(id, lastID string) (string, error) {
 	}
 
 	// Parse the new ID
-	ms, seqNum, err := parseStreamID(id)
+	ms, seqNum, err := parseStreamID(id, false)
 	if err != nil {
 		return "", err
 	}
@@ -58,7 +62,7 @@ func isValidStreamID(id, lastID string) (string, error) {
 	}
 
 	// Parse the last ID
-	prevMs, prevSeqNum, _ := parseStreamID(lastID)
+	prevMs, prevSeqNum, _ := parseStreamID(lastID, false)
 
 	// Generate the auto-increated sequence number
 	if seqNum == -1 {
@@ -81,4 +85,70 @@ func isValidStreamID(id, lastID string) (string, error) {
 	}
 
 	return fmt.Sprintf("%d-%d", ms, seqNum), nil
+}
+
+// getStartIdxByElemID gets the index in the stream from which the elements with ID greater than or equals to start.
+func getStartIdxByElemID(id string, stream Stream) (int, error) {
+	ms, seqNum, err := parseStreamID(id, true)
+	if err != nil {
+		return -1, err
+	}
+
+	low, high := 0, len(stream)-1
+	for low <= high {
+		mid := low + (high-low)/2
+
+		mms, mSeqNum, _ := parseStreamID(stream[mid].ID, false)
+		if mms < ms {
+			low = mid + 1
+		} else if mms > ms {
+			high = mid - 1
+		} else {
+			// Check if seqNum is provided or not
+			if seqNum == -1 {
+				high = mid - 1 // Move towards the first sequence number
+			} else if mSeqNum == seqNum {
+				return mid, nil
+			} else if mSeqNum < seqNum {
+				low = mid + 1
+			} else {
+				high = mid - 1
+			}
+		}
+	}
+
+	return low, nil
+}
+
+// getEndIdxByElemID gets the index in the stream till which the elements with ID less than or equals to end.
+func getEndIdxByElemID(id string, stream Stream) (int, error) {
+	ms, seqNum, err := parseStreamID(id, true)
+	if err != nil {
+		return -1, err
+	}
+
+	low, high := 0, len(stream)-1
+	for low <= high {
+		mid := low + (high-low)/2
+
+		mms, mSeqNum, _ := parseStreamID(stream[mid].ID, false)
+		if mms < ms {
+			low = mid + 1
+		} else if mms > ms {
+			high = mid - 1
+		} else {
+			// Check if seqNum is provided or not
+			if seqNum == -1 {
+				low = mid + 1 // Move towards the last sequence number
+			} else if mSeqNum == seqNum {
+				return mid, nil
+			} else if mSeqNum < seqNum {
+				low = mid + 1
+			} else {
+				high = mid - 1
+			}
+		}
+	}
+
+	return high, nil
 }
