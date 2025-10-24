@@ -298,9 +298,15 @@ func (m *Mem) Xrange(key, startId, endId string) (Stream, error) {
 		return nil, nil
 	}
 
-	startIdx, err := getStartIdxByElemID(startId, stream)
-	if err != nil {
-		return nil, err
+	// Get the start index
+	var startIdx int
+	if startId != "-" {
+		val, err := getStartIdxByElemID(startId, stream)
+		if err != nil {
+			return nil, err
+		}
+
+		startIdx = val
 	}
 
 	endIdx, err := getEndIdxByElemID(endId, stream)
