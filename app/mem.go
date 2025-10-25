@@ -331,29 +331,36 @@ func (m *Mem) Xrange(key, startId, endId string) (Stream, error) {
 	return result, nil
 }
 
-func (m *Mem) Xread(key, id string) (Stream, error) {
+func (m *Mem) Xread(keys, ids []string) ([]Stream, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	stream, ok := m.mp[key].(Stream)
-	if !ok {
-		return nil, nil
+	streams := make([]Stream, 0, len(keys))
+	for i, key := range keys {
+		id := ids[i]
+
+		stream, ok := m.mp[key].(Stream)
+		if !ok {
+			return nil, nil
+		}
+
+		// Get the end index
+		starIdx, err := getEndIdxByElemID(id, stream)
+		if err != nil {
+			return nil, err
+		}
+		// Do +1 as getEndIdxByElemID gives ID that is less than or equal to the given ID
+		starIdx++
+
+		if starIdx < 0 || starIdx >= len(stream) {
+			return nil, fmt.Errorf("invalid id is provided")
+		}
+
+		result := make(Stream, len(stream)-starIdx)
+		copy(result, stream[starIdx:])
+
+		streams = append(streams, result)
 	}
 
-	// Get the end index
-	starIdx, err := getEndIdxByElemID(id, stream)
-	if err != nil {
-		return nil, err
-	}
-	// Do +1 as getEndIdxByElemID gives ID that is less than or equal to the given ID
-	starIdx++
-
-	if starIdx < 0 || starIdx >= len(stream) {
-		return nil, fmt.Errorf("invalid id is provided")
-	}
-
-	result := make(Stream, len(stream)-starIdx)
-	copy(result, stream[starIdx:])
-
-	return result, nil
+	return streams, nil
 }

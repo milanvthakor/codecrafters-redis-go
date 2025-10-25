@@ -216,16 +216,41 @@ func handleXrangeCmd(cmd []*RespVal) (string, error) {
 }
 
 func handleXreadCmd(cmd []*RespVal) (string, error) {
-	if len(cmd) < 4 {
+	if len(cmd) < 2 {
 		return "", errInvalidCmd
 	}
 
-	stream, err := memCache.Xread(cmd[2].BulkStrs(), cmd[3].BulkStrs())
+	keyAnIds := cmd[2:]
+	if len(keyAnIds)%2 != 0 {
+		return "", fmt.Errorf("invalid list of stream keys and ids")
+	}
+
+	// Get the keys
+	keys := make([]string, 0, len(keyAnIds)/2)
+	for _, k := range keyAnIds[:len(keyAnIds)/2] {
+		keys = append(keys, k.BulkStrs())
+	}
+	// Get the IDs
+	ids := make([]string, 0, len(keyAnIds)/2)
+	for _, k := range keyAnIds[len(keyAnIds)/2:] {
+		ids = append(ids, k.BulkStrs())
+	}
+
+	// Get the streams
+	streams, err := memCache.Xread(keys, ids)
 	if err != nil {
 		return "", err
 	}
 
-	return "*1\r\n*2\r\n" + ToBulkStr(cmd[2].BulkStrs()) + StreamToArray(stream), nil
+	// Prepare the response
+	result := fmt.Sprintf("*%d\r\n", len(streams))
+	for i, stream := range streams {
+		result += "*2\r\n"
+		result += ToBulkStr(keys[i])
+		result += StreamToArray(stream)
+	}
+
+	return result, nil
 }
 
 // handleConnection handles the single client connection
