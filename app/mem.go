@@ -25,10 +25,17 @@ type ListBlockPop struct {
 	mu    sync.Mutex
 }
 
+// XreadQ is used to handle the waiting list of xrange
+type XreadQ struct {
+	waitQ map[string][]chan struct{}
+	mu    sync.Mutex
+}
+
 type Mem struct {
 	mu  sync.RWMutex
 	mp  map[string]any // TODO: Make sure a key holds the value of only one type. If user tries to change it, they shouldn't be able to do so if the value exists for it.
 	lbp *ListBlockPop
+	xrq *XreadQ
 }
 
 var memCache *Mem
@@ -37,6 +44,9 @@ func NewMem() *Mem {
 	return &Mem{
 		mp: make(map[string]any),
 		lbp: &ListBlockPop{
+			waitQ: make(map[string][]chan struct{}),
+		},
+		xrq: &XreadQ{
 			waitQ: make(map[string][]chan struct{}),
 		},
 	}
@@ -259,6 +269,25 @@ func (m *Mem) Type(key string) string {
 	}
 }
 
+func (m *Mem) handleStreamXadd(key string) {
+	m.xrq.mu.Lock()
+	defer m.xrq.mu.Unlock()
+
+	waitQ, ok := m.xrq.waitQ[key]
+	if !ok || len(waitQ) <= 0 {
+		return
+	}
+
+	for _, w := range waitQ {
+		select {
+		case w <- struct{}{}:
+		default:
+		}
+	}
+
+	delete(m.xrq.waitQ, key)
+}
+
 func (m *Mem) Xadd(key string, elem *StreamElem) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -285,6 +314,8 @@ func (m *Mem) Xadd(key string, elem *StreamElem) (string, error) {
 	elem.ID = id
 	stream = append(stream, elem)
 	m.mp[key] = stream
+
+	go m.handleStreamXadd(key)
 
 	return id, nil
 }
@@ -331,35 +362,73 @@ func (m *Mem) Xrange(key, startId, endId string) (Stream, error) {
 	return result, nil
 }
 
-func (m *Mem) Xread(keys, ids []string) ([]Stream, error) {
+func (m *Mem) xreadForAStream(key, id string) (Stream, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	stream, ok := m.mp[key].(Stream)
+	if !ok {
+		return nil, nil
+	}
+
+	// Get the end index
+	starIdx, err := getEndIdxByElemID(id, stream)
+	if err != nil {
+		return nil, err
+	}
+	// Do +1 as getEndIdxByElemID gives ID that is less than or equal to the given ID
+	starIdx++
+
+	if starIdx < 0 || starIdx >= len(stream) {
+		return nil, fmt.Errorf("invalid id is provided")
+	}
+
+	result := make(Stream, len(stream)-starIdx)
+	copy(result, stream[starIdx:])
+
+	return result, nil
+}
+
+func (m *Mem) Xread(keys, ids []string, timeout time.Duration) ([]Stream, error) {
 	streams := make([]Stream, 0, len(keys))
 	for i, key := range keys {
-		id := ids[i]
-
-		stream, ok := m.mp[key].(Stream)
-		if !ok {
-			return nil, nil
-		}
-
-		// Get the end index
-		starIdx, err := getEndIdxByElemID(id, stream)
+		stream, err := m.xreadForAStream(key, ids[i])
 		if err != nil {
 			return nil, err
 		}
-		// Do +1 as getEndIdxByElemID gives ID that is less than or equal to the given ID
-		starIdx++
 
-		if starIdx < 0 || starIdx >= len(stream) {
-			return nil, fmt.Errorf("invalid id is provided")
+		streams = append(streams, stream)
+	}
+
+	// Handles no timeout
+	if timeout == -1 {
+		return streams, nil
+	}
+
+	// Handles the timeout
+	for i, key := range keys {
+		if len(streams[i]) > 0 {
+			continue
 		}
 
-		result := make(Stream, len(stream)-starIdx)
-		copy(result, stream[starIdx:])
+		// Wait for the given timeout
+		streamAvaiSign := make(chan struct{})
+		m.xrq.mu.Lock()
+		m.xrq.waitQ[key] = append(m.xrq.waitQ[key], streamAvaiSign)
+		m.xrq.mu.Unlock()
 
-		streams = append(streams, result)
+		select {
+		case <-time.After(timeout):
+			streams[i] = nil
+
+		case <-streamAvaiSign:
+			stream, err := m.xreadForAStream(key, ids[i])
+			if err != nil {
+				return nil, err
+			}
+
+			streams[i] = stream
+		}
 	}
 
 	return streams, nil

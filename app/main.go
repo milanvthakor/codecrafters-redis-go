@@ -220,7 +220,24 @@ func handleXreadCmd(cmd []*RespVal) (string, error) {
 		return "", errInvalidCmd
 	}
 
-	keyAnIds := cmd[2:]
+	var (
+		timeout  time.Duration = -1
+		keyAnIds []*RespVal
+	)
+	switch strings.ToUpper(cmd[1].BulkStrs()) {
+	case "BLOCK":
+		ms, err := strconv.ParseInt(cmd[2].BulkStrs(), 10, 64)
+		if err != nil {
+			return "", fmt.Errorf("invalid 'timeout' value")
+		}
+
+		timeout = time.Duration(ms * int64(time.Millisecond))
+		keyAnIds = cmd[4:]
+
+	case "STREAMS":
+		keyAnIds = cmd[2:]
+	}
+
 	if len(keyAnIds)%2 != 0 {
 		return "", fmt.Errorf("invalid list of stream keys and ids")
 	}
@@ -237,7 +254,7 @@ func handleXreadCmd(cmd []*RespVal) (string, error) {
 	}
 
 	// Get the streams
-	streams, err := memCache.Xread(keys, ids)
+	streams, err := memCache.Xread(keys, ids, timeout)
 	if err != nil {
 		return "", err
 	}
