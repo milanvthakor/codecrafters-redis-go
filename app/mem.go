@@ -437,16 +437,16 @@ func (m *Mem) Xread(keys, ids []string, timeout time.Duration) ([]Stream, error)
 			if err := readStream(); err != nil {
 				return nil, err
 			}
-		}
+		} else {
+			// Handle the definite timeout
+			select {
+			case <-time.After(timeout):
+				return nil, nil
 
-		// Handle the definite timeout
-		select {
-		case <-time.After(timeout):
-			return nil, nil
-
-		case <-streamAvaiSign:
-			if err := readStream(); err != nil {
-				return nil, err
+			case <-streamAvaiSign:
+				if err := readStream(); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
