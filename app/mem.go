@@ -383,13 +383,13 @@ func (m *Mem) xreadForAStream(key, id string, idx int) (Stream, error) {
 			startIdx = idx
 		}
 	} else {
-		starIdx, err := getEndIdxByElemID(id, stream)
+		idx, err := getEndIdxByElemID(id, stream)
 		if err != nil {
 			return nil, err
 		}
 
 		// Do +1 as getEndIdxByElemID gives ID that is less than or equal to the given ID
-		starIdx++
+		startIdx = idx + 1
 	}
 
 	if startIdx < 0 {
@@ -446,6 +446,7 @@ func (m *Mem) Xread(keys, ids []string, timeout time.Duration) ([]Stream, error)
 		// Handle the indefinite timeout
 		if timeout == 0 {
 			idx := <-streamAvaiSign
+			fmt.Println()
 			if err := readStream(idx); err != nil {
 				return nil, err
 			}
