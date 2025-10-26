@@ -376,11 +376,15 @@ func (m *Mem) xreadForAStream(key, id string) (Stream, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// Do +1 as getEndIdxByElemID gives ID that is less than or equal to the given ID
 	starIdx++
 
-	if starIdx < 0 || starIdx >= len(stream) {
+	if starIdx < 0 {
 		return nil, fmt.Errorf("invalid id is provided")
+	}
+	if starIdx >= len(stream) {
+		return nil, nil
 	}
 
 	result := make(Stream, len(stream)-starIdx)
