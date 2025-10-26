@@ -25,9 +25,12 @@ type ListBlockPop struct {
 	mu    sync.Mutex
 }
 
-// XreadQ is used to handle the waiting list of xrange
+// XreadQ is used to handle the waiting list of xrange with timeout
 type XreadQ struct {
-	waitQ map[string][]chan struct{}
+	// waitQ is map of list key and the list of channels of the connection
+	// waiting for the new element to get inserted in the list. An index of newly inserted
+	// element will be sent on the channel
+	waitQ map[string][]chan int
 	mu    sync.Mutex
 }
 
@@ -47,7 +50,7 @@ func NewMem() *Mem {
 			waitQ: make(map[string][]chan struct{}),
 		},
 		xrq: &XreadQ{
-			waitQ: make(map[string][]chan struct{}),
+			waitQ: make(map[string][]chan int),
 		},
 	}
 }
@@ -269,7 +272,7 @@ func (m *Mem) Type(key string) string {
 	}
 }
 
-func (m *Mem) handleStreamXadd(key string) {
+func (m *Mem) handleStreamXadd(key string, idx int) {
 	m.xrq.mu.Lock()
 	defer m.xrq.mu.Unlock()
 
@@ -280,7 +283,7 @@ func (m *Mem) handleStreamXadd(key string) {
 
 	for _, w := range waitQ {
 		select {
-		case w <- struct{}{}:
+		case w <- idx:
 		default:
 		}
 	}
@@ -315,7 +318,7 @@ func (m *Mem) Xadd(key string, elem *StreamElem) (string, error) {
 	stream = append(stream, elem)
 	m.mp[key] = stream
 
-	go m.handleStreamXadd(key)
+	go m.handleStreamXadd(key, len(stream)-1)
 
 	return id, nil
 }
@@ -362,7 +365,7 @@ func (m *Mem) Xrange(key, startId, endId string) (Stream, error) {
 	return result, nil
 }
 
-func (m *Mem) xreadForAStream(key, id string) (Stream, error) {
+func (m *Mem) xreadForAStream(key, id string, idx int) (Stream, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -371,24 +374,33 @@ func (m *Mem) xreadForAStream(key, id string) (Stream, error) {
 		return nil, nil
 	}
 
-	// Get the end index
-	starIdx, err := getEndIdxByElemID(id, stream)
-	if err != nil {
-		return nil, err
+	// Get the index
+	var startIdx int
+	if id == "$" { // If its "$" only new entries add after the command should be returned
+		if idx == -1 {
+			startIdx = len(stream)
+		} else {
+			startIdx = idx
+		}
+	} else {
+		starIdx, err := getEndIdxByElemID(id, stream)
+		if err != nil {
+			return nil, err
+		}
+
+		// Do +1 as getEndIdxByElemID gives ID that is less than or equal to the given ID
+		starIdx++
 	}
 
-	// Do +1 as getEndIdxByElemID gives ID that is less than or equal to the given ID
-	starIdx++
-
-	if starIdx < 0 {
+	if startIdx < 0 {
 		return nil, fmt.Errorf("invalid id is provided")
 	}
-	if starIdx >= len(stream) {
+	if startIdx >= len(stream) {
 		return nil, nil
 	}
 
-	result := make(Stream, len(stream)-starIdx)
-	copy(result, stream[starIdx:])
+	result := make(Stream, len(stream)-startIdx)
+	copy(result, stream[startIdx:])
 
 	return result, nil
 }
@@ -396,7 +408,7 @@ func (m *Mem) xreadForAStream(key, id string) (Stream, error) {
 func (m *Mem) Xread(keys, ids []string, timeout time.Duration) ([]Stream, error) {
 	streams := make([]Stream, 0, len(keys))
 	for i, key := range keys {
-		stream, err := m.xreadForAStream(key, ids[i])
+		stream, err := m.xreadForAStream(key, ids[i], -1)
 		if err != nil {
 			return nil, err
 		}
@@ -416,13 +428,13 @@ func (m *Mem) Xread(keys, ids []string, timeout time.Duration) ([]Stream, error)
 		}
 
 		// Wait for the given timeout
-		streamAvaiSign := make(chan struct{})
+		streamAvaiSign := make(chan int)
 		m.xrq.mu.Lock()
 		m.xrq.waitQ[key] = append(m.xrq.waitQ[key], streamAvaiSign)
 		m.xrq.mu.Unlock()
 
-		readStream := func() error {
-			stream, err := m.xreadForAStream(key, ids[i])
+		readStream := func(idx int) error {
+			stream, err := m.xreadForAStream(key, ids[i], idx)
 			if err != nil {
 				return err
 			}
@@ -433,8 +445,8 @@ func (m *Mem) Xread(keys, ids []string, timeout time.Duration) ([]Stream, error)
 
 		// Handle the indefinite timeout
 		if timeout == 0 {
-			<-streamAvaiSign
-			if err := readStream(); err != nil {
+			idx := <-streamAvaiSign
+			if err := readStream(idx); err != nil {
 				return nil, err
 			}
 		} else {
@@ -443,8 +455,8 @@ func (m *Mem) Xread(keys, ids []string, timeout time.Duration) ([]Stream, error)
 			case <-time.After(timeout):
 				return nil, nil
 
-			case <-streamAvaiSign:
-				if err := readStream(); err != nil {
+			case idx := <-streamAvaiSign:
+				if err := readStream(idx); err != nil {
 					return nil, err
 				}
 			}
