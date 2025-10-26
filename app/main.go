@@ -259,6 +259,10 @@ func handleXreadCmd(cmd []*RespVal) (string, error) {
 		return "", err
 	}
 
+	if streams == nil {
+		return ToNullArray(), nil
+	}
+
 	// Prepare the response
 	result := fmt.Sprintf("*%d\r\n", len(streams))
 	for i, stream := range streams {

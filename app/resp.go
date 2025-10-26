@@ -190,6 +190,10 @@ func ToArray(arr []any) string {
 	return str
 }
 
+func ToNullArray() string {
+	return "*-1\r\n"
+}
+
 func StreamToArray(stream Stream) string {
 	str := fmt.Sprintf("*%d\r\n", len(stream))
 	for _, streElem := range stream {

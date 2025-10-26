@@ -423,7 +423,7 @@ func (m *Mem) Xread(keys, ids []string, timeout time.Duration) ([]Stream, error)
 
 		select {
 		case <-time.After(timeout):
-			streams[i] = nil
+			return nil, nil
 
 		case <-streamAvaiSign:
 			stream, err := m.xreadForAStream(key, ids[i])
