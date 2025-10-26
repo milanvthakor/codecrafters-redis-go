@@ -404,12 +404,12 @@ func (m *Mem) Xread(keys, ids []string, timeout time.Duration) ([]Stream, error)
 		streams = append(streams, stream)
 	}
 
-	// Handles no timeout
+	// Handle the case where no timeout is provided
 	if timeout == -1 {
 		return streams, nil
 	}
 
-	// Handles the timeout
+	// Handle the timeout
 	for i, key := range keys {
 		if len(streams[i]) > 0 {
 			continue
@@ -421,17 +421,33 @@ func (m *Mem) Xread(keys, ids []string, timeout time.Duration) ([]Stream, error)
 		m.xrq.waitQ[key] = append(m.xrq.waitQ[key], streamAvaiSign)
 		m.xrq.mu.Unlock()
 
+		readStream := func() error {
+			stream, err := m.xreadForAStream(key, ids[i])
+			if err != nil {
+				return err
+			}
+
+			streams[i] = stream
+			return nil
+		}
+
+		// Handle the indefinite timeout
+		if timeout == 0 {
+			<-streamAvaiSign
+			if err := readStream(); err != nil {
+				return nil, err
+			}
+		}
+
+		// Handle the definite timeout
 		select {
 		case <-time.After(timeout):
 			return nil, nil
 
 		case <-streamAvaiSign:
-			stream, err := m.xreadForAStream(key, ids[i])
-			if err != nil {
+			if err := readStream(); err != nil {
 				return nil, err
 			}
-
-			streams[i] = stream
 		}
 	}
 
