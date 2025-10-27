@@ -291,6 +291,10 @@ func handleMultiCmd(cmd []*RespVal) (string, error) {
 	return ToSimpleStr("OK"), nil
 }
 
+func handleExecCmd(cmd []*RespVal) (string, error) {
+	return "", errExecWoMulti
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -362,6 +366,9 @@ func handleConnection(conn net.Conn) {
 
 		case "MULTI":
 			respStr, err = handleMultiCmd(cmd)
+
+		case "EXEC":
+			respStr, err = handleExecCmd(cmd)
 		}
 
 		// Check the error from the command action, if any
