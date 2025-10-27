@@ -74,7 +74,7 @@ func handleRpushCmd(cmd []*RespVal) (string, error) {
 	}
 
 	listLen := memCache.Rpush(cmd[1].BulkStrs(), vals...)
-	return ToIntegers(listLen), nil
+	return ToIntegers(int64(listLen)), nil
 }
 
 func handleLrangeCmd(cmd []*RespVal) (string, error) {
@@ -107,7 +107,7 @@ func handleLpushCmd(cmd []*RespVal) (string, error) {
 	}
 
 	listLen := memCache.Lpush(cmd[1].BulkStrs(), vals...)
-	return ToIntegers(listLen), nil
+	return ToIntegers(int64(listLen)), nil
 }
 
 func handleLlenCmd(cmd []*RespVal) (string, error) {
@@ -116,7 +116,7 @@ func handleLlenCmd(cmd []*RespVal) (string, error) {
 	}
 
 	len := memCache.Llen(cmd[1].BulkStrs())
-	return ToIntegers(len), nil
+	return ToIntegers(int64(len)), nil
 }
 
 func handleLpopCmd(cmd []*RespVal) (string, error) {
@@ -274,6 +274,19 @@ func handleXreadCmd(cmd []*RespVal) (string, error) {
 	return result, nil
 }
 
+func handleIncrCmd(cmd []*RespVal) (string, error) {
+	if len(cmd) < 2 {
+		return "", errInvalidCmd
+	}
+
+	val, err := memCache.Incr(cmd[1].BulkStrs())
+	if err != nil {
+		return "", err
+	}
+
+	return ToNumeric(val), nil
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -339,6 +352,9 @@ func handleConnection(conn net.Conn) {
 
 		case "XREAD":
 			respStr, err = handleXreadCmd(cmd)
+
+		case "INCR":
+			respStr, err = handleIncrCmd(cmd)
 		}
 
 		// Check the error from the command action, if any

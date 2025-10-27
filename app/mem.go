@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -465,4 +466,39 @@ func (m *Mem) Xread(keys, ids []string, timeout time.Duration) ([]Stream, error)
 	}
 
 	return streams, nil
+}
+
+func (m *Mem) Incr(key string) (any, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	val, ok := m.mp[key]
+	if !ok {
+		return "", nil
+	}
+
+	switch v := val.(type) {
+	case string:
+		ival, err := strconv.ParseInt(v, 10, 64)
+		if err == nil {
+			val = ival + 1
+			break
+		}
+
+		fval, err := strconv.ParseFloat(v, 64)
+		if err == nil {
+			val = fval + 1
+			break
+		}
+
+		return "", fmt.Errorf("value is not of numerical type")
+
+	case int64:
+		val = v + 1
+	case float64:
+		val = v + 1
+	}
+
+	m.mp[key] = val
+	return val, nil
 }

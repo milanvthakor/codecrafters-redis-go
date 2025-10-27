@@ -173,8 +173,12 @@ func ToNulls() string {
 	return "$-1\r\n"
 }
 
-func ToIntegers(val int) string {
+func ToIntegers(val int64) string {
 	return fmt.Sprintf(":%d\r\n", val)
+}
+
+func ToDoubles(val float64) string {
+	return fmt.Sprintf(",%v\r\n", val)
 }
 
 func ToArray(arr []any) string {
@@ -207,4 +211,14 @@ func StreamToArray(stream Stream) string {
 	}
 
 	return str
+}
+
+func ToNumeric(val any) string {
+	switch v := val.(type) {
+	case int64:
+		return ToIntegers(v)
+	case float64:
+		return ToDoubles(v)
+	}
+	return ""
 }
