@@ -10,6 +10,7 @@ import (
 var (
 	errXaddIdIsZero      = fmt.Errorf("ERR The ID specified in XADD must be greater than 0-0")
 	errXaddIdIsEqOrSmall = fmt.Errorf("ERR The ID specified in XADD is equal or smaller than the target stream top item")
+	errNotANumericValue  = fmt.Errorf("ERR value is not an integer or out of range")
 )
 
 // parseStreamID parses the given Xadd stream id

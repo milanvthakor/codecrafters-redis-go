@@ -492,7 +492,7 @@ func (m *Mem) Incr(key string) (any, error) {
 			break
 		}
 
-		return "", fmt.Errorf("value is not of numerical type")
+		return "", errNotANumericValue
 
 	case int64:
 		val = v + 1
