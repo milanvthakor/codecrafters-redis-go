@@ -474,7 +474,8 @@ func (m *Mem) Incr(key string) (any, error) {
 
 	val, ok := m.mp[key]
 	if !ok {
-		return "", nil
+		m.mp[key] = int64(1)
+		return m.mp[key], nil
 	}
 
 	switch v := val.(type) {
