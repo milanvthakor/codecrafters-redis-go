@@ -379,7 +379,7 @@ func handleConnection(conn net.Conn) {
 
 		case "EXEC":
 			respStr, err = handleExecCmd(cmd, isMultiCmdExecuted)
-			fmt.Println("resp", respStr, err)
+			isMultiCmdExecuted = false
 		}
 
 		// Check the error from the command action, if any
