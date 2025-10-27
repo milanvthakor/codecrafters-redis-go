@@ -287,6 +287,10 @@ func handleIncrCmd(cmd []*RespVal) (string, error) {
 	return ToNumeric(val), nil
 }
 
+func handleMultiCmd(cmd []*RespVal) (string, error) {
+	return ToSimpleStr("OK"), nil
+}
+
 // handleConnection handles the single client connection
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -355,6 +359,9 @@ func handleConnection(conn net.Conn) {
 
 		case "INCR":
 			respStr, err = handleIncrCmd(cmd)
+
+		case "MULTI":
+			respStr, err = handleMultiCmd(cmd)
 		}
 
 		// Check the error from the command action, if any
