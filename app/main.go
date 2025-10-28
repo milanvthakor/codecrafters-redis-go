@@ -336,7 +336,7 @@ func handleConnection(conn net.Conn) {
 		cmdName := strings.ToUpper(cmd[0].BulkStrs())
 		if isMultiCmdExecuted && cmdName != "EXEC" {
 			returnResp(ToSimpleStr("QUEUED"))
-			return
+			continue
 		}
 
 		// Perform the action as per the command

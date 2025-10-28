@@ -8,7 +8,7 @@ import (
 
 // readUntilCRLF reads from the connection until the CRLF appears
 func readUntilCRLF(conn net.Conn) (string, error) {
-	conn.SetReadDeadline(time.Now().Add(time.Second))
+	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 	defer conn.SetReadDeadline(time.Time{})
 
 	var data string
