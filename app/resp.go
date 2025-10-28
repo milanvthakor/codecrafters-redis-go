@@ -181,14 +181,23 @@ func ToDoubles(val float64) string {
 	return fmt.Sprintf(",%v\r\n", val)
 }
 
-func ToArray(arr []any) string {
+func ToBulkStrArr(arr []any) []string {
+	strArr := make([]string, 0, len(arr))
+	for _, ele := range arr {
+		strArr = append(strArr, ToBulkStr(ele))
+	}
+
+	return strArr
+}
+
+func ToArray(arr []string) string {
 	if arr == nil {
 		return "*-1\r\n"
 	}
 
 	str := fmt.Sprintf("*%d\r\n", len(arr))
 	for _, ele := range arr {
-		str += fmt.Sprintf("$%d\r\n%v\r\n", len(fmt.Sprint(ele)), ele)
+		str += ele
 	}
 
 	return str

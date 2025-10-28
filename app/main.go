@@ -93,7 +93,7 @@ func handleLrangeCmd(cmd []*RespVal) (string, error) {
 	}
 
 	vals := memCache.Lrange(cmd[1].BulkStrs(), start, stop)
-	return ToArray(vals), nil
+	return ToArray(ToBulkStrArr(vals)), nil
 }
 
 func handleLpushCmd(cmd []*RespVal) (string, error) {
@@ -142,7 +142,7 @@ func handleLpopCmd(cmd []*RespVal) (string, error) {
 		return ToBulkStr(removed[0]), nil
 	}
 
-	return ToArray(removed), nil
+	return ToArray(ToBulkStrArr(removed)), nil
 }
 
 func handleBlpopCmd(cmd []*RespVal) (string, error) {
@@ -161,7 +161,7 @@ func handleBlpopCmd(cmd []*RespVal) (string, error) {
 		return ToArray(nil), nil
 	}
 
-	return ToArray([]any{key, removed}), nil
+	return ToArray(ToBulkStrArr([]any{key, removed})), nil
 }
 
 func handleTypeCmd(cmd []*RespVal) (string, error) {
@@ -287,15 +287,81 @@ func handleIncrCmd(cmd []*RespVal) (string, error) {
 	return ToNumeric(val), nil
 }
 
-func handleMultiCmd(cmd []*RespVal) (string, error) {
-	return ToSimpleStr("OK"), nil
+func handleExecCmd(isMultiCmdExecuted bool, transactions [][]*RespVal) string {
+	if !isMultiCmdExecuted {
+		return ToSimpErr(errExecWoMulti.Error())
+	}
+
+	// Execute all the commands of the queue
+	resps := []string{}
+	for _, cmd := range transactions {
+		resps = append(resps, handleCmd(cmd))
+	}
+
+	return ToArray(resps)
 }
 
-func handleExecCmd(cmd []*RespVal, isMultiCmdExecuted bool) (string, error) {
-	if isMultiCmdExecuted {
-		return ToArray([]any{}), nil
+func handleCmd(cmd []*RespVal) string {
+	cmdName := strings.ToUpper(cmd[0].BulkStrs())
+	// Perform the action as per the command
+	var (
+		respStr string
+		err     error
+	)
+	switch cmdName {
+	case "PING":
+		respStr = ToSimpleStr("PONG")
+
+	case "ECHO":
+		respStr, err = handleEchoCmd(cmd)
+
+	case "SET":
+		respStr, err = handleSetCmd(cmd)
+
+	case "GET":
+		respStr, err = handleGetCmd(cmd)
+
+	case "RPUSH":
+		respStr, err = handleRpushCmd(cmd)
+
+	case "LRANGE":
+		respStr, err = handleLrangeCmd(cmd)
+
+	case "LPUSH":
+		respStr, err = handleLpushCmd(cmd)
+
+	case "LLEN":
+		respStr, err = handleLlenCmd(cmd)
+
+	case "LPOP":
+		respStr, err = handleLpopCmd(cmd)
+
+	case "BLPOP":
+		respStr, err = handleBlpopCmd(cmd)
+
+	case "TYPE":
+		respStr, err = handleTypeCmd(cmd)
+
+	case "XADD":
+		respStr, err = handleXaddCmd(cmd)
+
+	case "XRANGE":
+		respStr, err = handleXrangeCmd(cmd)
+
+	case "XREAD":
+		respStr, err = handleXreadCmd(cmd)
+
+	case "INCR":
+		respStr, err = handleIncrCmd(cmd)
 	}
-	return "", errExecWoMulti
+
+	// Check the error from the command action, if any
+	if err != nil {
+		fmt.Println("Failed to perform the command action: ", err.Error())
+		respStr = ToSimpErr(err.Error())
+	}
+
+	return respStr
 }
 
 // handleConnection handles the single client connection
@@ -312,8 +378,8 @@ func handleConnection(conn net.Conn) {
 
 	var (
 		isMultiCmdExecuted bool
-		// transaction holds the commands issued after the "MULTI" command
-		// transaction [][]*RespVal
+		// transactions holds the commands issued after the "MULTI" command
+		transactions [][]*RespVal
 	)
 
 	for {
@@ -336,70 +402,24 @@ func handleConnection(conn net.Conn) {
 		cmdName := strings.ToUpper(cmd[0].BulkStrs())
 		if isMultiCmdExecuted && cmdName != "EXEC" {
 			returnResp(ToSimpleStr("QUEUED"))
+			transactions = append(transactions, cmd)
 			continue
 		}
 
-		// Perform the action as per the command
+		// Handle the commmand
 		var respStr string
 		switch cmdName {
-		case "PING":
-			respStr = ToSimpleStr("PONG")
-
-		case "ECHO":
-			respStr, err = handleEchoCmd(cmd)
-
-		case "SET":
-			respStr, err = handleSetCmd(cmd)
-
-		case "GET":
-			respStr, err = handleGetCmd(cmd)
-
-		case "RPUSH":
-			respStr, err = handleRpushCmd(cmd)
-
-		case "LRANGE":
-			respStr, err = handleLrangeCmd(cmd)
-
-		case "LPUSH":
-			respStr, err = handleLpushCmd(cmd)
-
-		case "LLEN":
-			respStr, err = handleLlenCmd(cmd)
-
-		case "LPOP":
-			respStr, err = handleLpopCmd(cmd)
-
-		case "BLPOP":
-			respStr, err = handleBlpopCmd(cmd)
-
-		case "TYPE":
-			respStr, err = handleTypeCmd(cmd)
-
-		case "XADD":
-			respStr, err = handleXaddCmd(cmd)
-
-		case "XRANGE":
-			respStr, err = handleXrangeCmd(cmd)
-
-		case "XREAD":
-			respStr, err = handleXreadCmd(cmd)
-
-		case "INCR":
-			respStr, err = handleIncrCmd(cmd)
-
 		case "MULTI":
-			respStr, err = handleMultiCmd(cmd)
 			isMultiCmdExecuted = true
+			respStr = ToSimpleStr("OK")
 
 		case "EXEC":
-			respStr, err = handleExecCmd(cmd, isMultiCmdExecuted)
+			respStr = handleExecCmd(isMultiCmdExecuted, transactions)
 			isMultiCmdExecuted = false
-		}
+			transactions = nil
 
-		// Check the error from the command action, if any
-		if err != nil {
-			fmt.Println("Failed to perform the command action: ", err.Error())
-			respStr = ToSimpErr(err.Error())
+		default:
+			respStr = handleCmd(cmd)
 		}
 
 		returnResp(respStr)
