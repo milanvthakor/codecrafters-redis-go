@@ -302,6 +302,14 @@ func handleExecCmd(cmd []*RespVal, isMultiCmdExecuted bool) (string, error) {
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
+	// Return the response
+	returnResp := func(respStr string) {
+		if _, err := conn.Write([]byte(respStr)); err != nil {
+			fmt.Println("Error sending the response: ", err.Error())
+			return
+		}
+	}
+
 	var (
 		isMultiCmdExecuted bool
 		// transaction holds the commands issued after the "MULTI" command
@@ -325,9 +333,15 @@ func handleConnection(conn net.Conn) {
 			return
 		}
 
+		cmdName := strings.ToUpper(cmd[0].BulkStrs())
+		if isMultiCmdExecuted && cmdName != "EXEC" {
+			returnResp(ToSimpleStr("QUEUED"))
+			return
+		}
+
 		// Perform the action as per the command
 		var respStr string
-		switch strings.ToUpper(cmd[0].BulkStrs()) {
+		switch cmdName {
 		case "PING":
 			respStr = ToSimpleStr("PONG")
 
@@ -388,11 +402,7 @@ func handleConnection(conn net.Conn) {
 			respStr = ToSimpErr(err.Error())
 		}
 
-		// Return the response
-		if _, err := conn.Write([]byte(respStr)); err != nil {
-			fmt.Println("Error sending the response: ", err.Error())
-			return
-		}
+		returnResp(respStr)
 	}
 }
 
