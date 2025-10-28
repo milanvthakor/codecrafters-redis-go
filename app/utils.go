@@ -12,6 +12,7 @@ var (
 	errXaddIdIsEqOrSmall = fmt.Errorf("ERR The ID specified in XADD is equal or smaller than the target stream top item")
 	errNotANumericValue  = fmt.Errorf("ERR value is not an integer or out of range")
 	errExecWoMulti       = fmt.Errorf("ERR EXEC without MULTI")
+	errDiscardWoMulti    = fmt.Errorf("ERR DISCARD without MULTI")
 )
 
 // parseStreamID parses the given Xadd stream id

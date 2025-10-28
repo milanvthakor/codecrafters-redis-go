@@ -301,6 +301,14 @@ func handleExecCmd(isMultiCmdExecuted bool, transactions [][]*RespVal) string {
 	return ToArray(resps)
 }
 
+func handleDiscardCmd(isMultiCmdExecuted bool) string {
+	if !isMultiCmdExecuted {
+		return ToSimpErr(errDiscardWoMulti.Error())
+	}
+
+	return ToSimpleStr("OK")
+}
+
 func handleCmd(cmd []*RespVal) string {
 	cmdName := strings.ToUpper(cmd[0].BulkStrs())
 	// Perform the action as per the command
@@ -400,7 +408,7 @@ func handleConnection(conn net.Conn) {
 		}
 
 		cmdName := strings.ToUpper(cmd[0].BulkStrs())
-		if isMultiCmdExecuted && cmdName != "EXEC" {
+		if isMultiCmdExecuted && cmdName != "EXEC" && cmdName != "DISCARD" {
 			returnResp(ToSimpleStr("QUEUED"))
 			transactions = append(transactions, cmd)
 			continue
@@ -415,6 +423,11 @@ func handleConnection(conn net.Conn) {
 
 		case "EXEC":
 			respStr = handleExecCmd(isMultiCmdExecuted, transactions)
+			isMultiCmdExecuted = false
+			transactions = nil
+
+		case "DISCARD":
+			respStr = handleDiscardCmd(isMultiCmdExecuted)
 			isMultiCmdExecuted = false
 			transactions = nil
 
