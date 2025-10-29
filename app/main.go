@@ -442,6 +442,7 @@ func handleConnection(conn net.Conn) {
 
 func main() {
 	port := flag.Int("port", 6379, "The port on which the server should start.")
+	flag.Parse()
 
 	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", *port))
 	if err != nil {
