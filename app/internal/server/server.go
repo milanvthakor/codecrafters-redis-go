@@ -6,10 +6,10 @@ import (
 	"net"
 	"strings"
 
-	"github.com/codecrafters-io/redis-starter-go/app/internal/cmd"
-	"github.com/codecrafters-io/redis-starter-go/app/internal/errors"
-	"github.com/codecrafters-io/redis-starter-go/app/internal/protocol"
-	"github.com/codecrafters-io/redis-starter-go/app/internal/storage"
+	"gokv/app/internal/cmd"
+	"gokv/app/internal/errors"
+	"gokv/app/internal/protocol"
+	"gokv/app/internal/storage"
 )
 
 // Server represents the Redis server.

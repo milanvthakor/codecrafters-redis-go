@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"github.com/codecrafters-io/redis-starter-go/app/internal/errors"
-	"github.com/codecrafters-io/redis-starter-go/app/internal/protocol"
-	"github.com/codecrafters-io/redis-starter-go/app/internal/storage"
+	"gokv/app/internal/errors"
+	"gokv/app/internal/protocol"
+	"gokv/app/internal/storage"
 )
 
 func handlePing(cmd []*protocol.RespVal, store *storage.Mem) (string, error) {

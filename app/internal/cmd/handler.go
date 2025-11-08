@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/codecrafters-io/redis-starter-go/app/internal/protocol"
-	"github.com/codecrafters-io/redis-starter-go/app/internal/storage"
+	"gokv/app/internal/protocol"
+	"gokv/app/internal/storage"
 )
 
 // Handler represents a command handler function.

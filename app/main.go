@@ -6,7 +6,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/codecrafters-io/redis-starter-go/app/internal/server"
+	"gokv/app/internal/server"
 )
 
 func main() {

@@ -1,4 +1,4 @@
-# Redis Server Implementation
+# Gokv
 
 A Redis-compatible in-memory data store server built with Go. This implementation supports core Redis commands including string operations (SET, GET, INCR), list operations (RPUSH, LPUSH, LRANGE, LPOP, BLPOP), stream operations (XADD, XRANGE, XREAD), and transaction support (MULTI, EXEC, DISCARD).
 
@@ -57,7 +57,7 @@ The server uses the RESP (REdis Serialization Protocol) for client-server commun
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd codecrafters-redis-go
+cd gokv
 ```
 
 2. Install dependencies (if any):
