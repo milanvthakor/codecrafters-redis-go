@@ -1,18 +1,10 @@
-package main
+package storage
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
-)
-
-var (
-	errXaddIdIsZero      = fmt.Errorf("ERR The ID specified in XADD must be greater than 0-0")
-	errXaddIdIsEqOrSmall = fmt.Errorf("ERR The ID specified in XADD is equal or smaller than the target stream top item")
-	errNotANumericValue  = fmt.Errorf("ERR value is not an integer or out of range")
-	errExecWoMulti       = fmt.Errorf("ERR EXEC without MULTI")
-	errDiscardWoMulti    = fmt.Errorf("ERR DISCARD without MULTI")
 )
 
 // parseStreamID parses the given Xadd stream id
@@ -47,7 +39,7 @@ func parseStreamID(id string, isSeqNumOpt bool) (int64, int64, error) {
 	return ms, seqNum, nil
 }
 
-// isValidStreamID checks if the new Xadd stread id is valid as per the format and last id.
+// isValidStreamID checks if the new Xadd stream id is valid as per the format and last id.
 // If either part of the ID contains "*", it auto-generates the ID and return it.
 // Otherwise, returns the same id.
 func isValidStreamID(id, lastID string) (string, error) {
@@ -61,13 +53,13 @@ func isValidStreamID(id, lastID string) (string, error) {
 		return "", err
 	}
 	if ms == 0 && seqNum == 0 {
-		return "", errXaddIdIsZero
+		return "", fmt.Errorf("ERR The ID specified in XADD must be greater than 0-0")
 	}
 
 	// Parse the last ID
 	prevMs, prevSeqNum, _ := parseStreamID(lastID, false)
 
-	// Generate the auto-increated sequence number
+	// Generate the auto-incremented sequence number
 	if seqNum == -1 {
 		if ms == 0 {
 			seqNum = 1
@@ -81,10 +73,10 @@ func isValidStreamID(id, lastID string) (string, error) {
 	// Validate the new ID against the last one
 	if ms == prevMs {
 		if seqNum <= prevSeqNum {
-			return "", errXaddIdIsEqOrSmall
+			return "", fmt.Errorf("ERR The ID specified in XADD is equal or smaller than the target stream top item")
 		}
 	} else if ms <= prevMs {
-		return "", errXaddIdIsEqOrSmall
+		return "", fmt.Errorf("ERR The ID specified in XADD is equal or smaller than the target stream top item")
 	}
 
 	return fmt.Sprintf("%d-%d", ms, seqNum), nil

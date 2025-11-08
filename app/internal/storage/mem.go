@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"fmt"
@@ -35,6 +35,7 @@ type XreadQ struct {
 	mu    sync.Mutex
 }
 
+// Mem represents the in-memory storage for Redis data structures.
 type Mem struct {
 	mu  sync.RWMutex
 	mp  map[string]any // TODO: Make sure a key holds the value of only one type. If user tries to change it, they shouldn't be able to do so if the value exists for it.
@@ -42,8 +43,7 @@ type Mem struct {
 	xrq *XreadQ
 }
 
-var memCache *Mem
-
+// NewMem creates a new memory storage instance.
 func NewMem() *Mem {
 	return &Mem{
 		mp: make(map[string]any),
@@ -54,10 +54,6 @@ func NewMem() *Mem {
 			waitQ: make(map[string][]chan int),
 		},
 	}
-}
-
-func init() {
-	memCache = NewMem()
 }
 
 func (m *Mem) Get(key string) (any, bool) {
@@ -492,7 +488,7 @@ func (m *Mem) Incr(key string) (any, error) {
 			break
 		}
 
-		return "", errNotANumericValue
+		return "", fmt.Errorf("ERR value is not an integer or out of range")
 
 	case int64:
 		val = v + 1

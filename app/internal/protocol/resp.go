@@ -1,9 +1,12 @@
-package main
+package protocol
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"strconv"
+	"strings"
+	"time"
 )
 
 // EncType represents the different encoding types of the RESP value.
@@ -64,8 +67,8 @@ func (i *RespVal) BulkErrs() string {
 	return i.Val.(string)
 }
 
-// readRespVal reads the input command from the connection as per the RESP format
-func readRespVal(conn net.Conn) (*RespVal, error) {
+// ReadRespVal reads the input command from the connection as per the RESP format
+func ReadRespVal(conn net.Conn) (*RespVal, error) {
 	c := &RespVal{}
 
 	input, err := readUntilCRLF(conn)
@@ -112,7 +115,7 @@ func readRespVal(conn net.Conn) (*RespVal, error) {
 		// Read the array elements
 		arrElems := make([]*RespVal, 0, arrSize)
 		for range arrSize {
-			elem, err := readRespVal(conn)
+			elem, err := ReadRespVal(conn)
 			if err != nil {
 				return nil, err
 			}
@@ -156,6 +159,31 @@ func readRespVal(conn net.Conn) (*RespVal, error) {
 
 	return c, nil
 }
+
+// readUntilCRLF reads from the connection until the CRLF appears
+func readUntilCRLF(conn net.Conn) (string, error) {
+	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	defer conn.SetReadDeadline(time.Time{})
+
+	var data string
+	for {
+		b := make([]byte, 1)
+		_, err := conn.Read(b)
+		if err == io.EOF {
+			return data, err
+		}
+		if err != nil {
+			return "", err
+		}
+
+		data += string(b)
+		if len(data) >= 2 && data[len(data)-2] == '\r' && data[len(data)-1] == '\n' {
+			return data[:len(data)-2], nil
+		}
+	}
+}
+
+// Response encoding functions
 
 func ToSimpleStr(val string) string {
 	return fmt.Sprintf("+%s\r\n", val)
@@ -207,21 +235,6 @@ func ToNullArray() string {
 	return "*-1\r\n"
 }
 
-func StreamToArray(stream Stream) string {
-	str := fmt.Sprintf("*%d\r\n", len(stream))
-	for _, streElem := range stream {
-		str += "*2\r\n"
-		str += ToBulkStr(streElem.ID)
-
-		str += fmt.Sprintf("*%d\r\n", len(streElem.Pairs)*2)
-		for k, v := range streElem.Pairs {
-			str += ToBulkStr(k) + ToBulkStr(v)
-		}
-	}
-
-	return str
-}
-
 func ToNumeric(val any) string {
 	switch v := val.(type) {
 	case int64:
@@ -230,4 +243,9 @@ func ToNumeric(val any) string {
 		return ToDoubles(v)
 	}
 	return ""
+}
+
+// ToUpper converts a string to uppercase
+func ToUpper(s string) string {
+	return strings.ToUpper(s)
 }
